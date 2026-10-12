@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Market Maker Desk | Order Book Simulator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div><span class="eyebrow">MARKET MAKER LAB</span><h1>Market Maker Desk</h1><p>Live order book simulator with Avellaneda–Stoikov quotes and adaptive Q-learning</p></div>
+      <div class="live"><span></span> LIVE <small id="updated">Connecting…</small></div>
+    </header>
+
+    <section class="stats-grid">
+      <article class="stat"><span>Mid price</span><strong id="mid">—</strong><small id="spread">Spread —</small></article>
+      <article class="stat"><span>Net inventory</span><strong id="inventory">—</strong><small>Positive = long · Negative = short</small></article>
+      <article class="stat"><span>Account equity</span><strong id="equity">—</strong><small id="cash">Cash —</small></article>
+      <article class="stat"><span>Unrealized P&amp;L</span><strong id="unrealized">—</strong><small id="realized">Realized —</small></article>
+    </section>
+
+    <section class="layout">
+      <div class="left-column">
+        <article class="panel book-panel">
+          <div class="panel-heading"><div><span class="kicker">LIVE MARKET</span><h2>Order book</h2></div><span class="badge" id="volatility">Volatility —</span></div>
+          <div class="book-header"><span>Asks · Size / Price</span><span>Bids · Size / Price</span></div>
+          <div class="book-columns"><div id="asks" class="book-side asks"></div><div id="bids" class="book-side bids"></div></div>
+        </article>
+        <article class="panel chart-panel"><div class="panel-heading"><div><span class="kicker">PRICE PATH</span><h2>Price history</h2></div><span class="muted">Random motion + your order impact</span></div><canvas id="chart" height="170"></canvas></article>
+      </div>
+
+      <aside class="right-column">
+        <article class="panel agent-panel">
+          <div class="panel-heading"><div><span class="kicker accent">REINFORCEMENT LEARNING</span><h2>Adaptive quoting agent</h2></div><span class="badge" id="agentStatus">Untrained</span></div>
+          <p class="helper">Q-learning adjusts the A–S quote. It only replaces its own orders; your manual orders remain untouched.</p>
+          <div class="agent-stats">
+            <div><span>Decisions</span><b id="agentSteps">0</b></div>
+            <div><span>Updates this session</span><b id="agentUpdates">0</b></div>
+            <div><span>Visited states</span><b id="agentStates">0</b></div>
+            <div><span>Exploration (ε)</span><b id="agentEpsilon">—</b></div>
+            <div><span>Last reward</span><b id="agentReward">—</b></div>
+            <div><span>Avg reward · last 20</span><b id="agentAverage">—</b></div>
+            <div><span>Positive reward · last 20</span><b id="agentPositive">—</b></div>
+            <div><span>Saved at decision</span><b id="agentSaved">—</b></div>
+          </div>
+          <div class="agent-choice"><span>Last action <small id="agentMode">—</small></span><strong id="agentAction">No decision yet</strong><small id="agentQuote">—</small><small id="agentState">State: —</small></div>
+          <button id="toggleAgent" class="primary-button" type="button">Start training</button>
+          <p class="helper" id="agentStorage">No saved policy loaded.</p>
+          <details class="training-info"><summary>How the agent learns</summary><p>Every three market ticks, it observes net inventory, 5-tick momentum, volatility, order-book imbalance and manual-order pressure. It picks one of seven adjustments to the A–S reservation price, spread or order sizes. Reward = change in account equity − inventory risk penalty. Q-values update at learning rate 0.12 and discount 0.92. Exploration starts at 35% and decays toward 5%. Policy saves every 20 decisions and when stopped. Simulated returns do not guarantee real profits.</p></details>
+        </article>
+        <article class="panel quote-panel">
+          <div class="panel-heading"><div><span class="kicker accent">A–S MODEL</span><h2>Avellaneda–Stoikov quote</h2></div><button id="refreshQuote" class="icon-button" title="Recalculate quote" aria-label="Recalculate quote">↻</button></div>
+          <p class="helper">The suggestion responds to inventory, price and volatility. Your form inputs stay editable.</p>
+          <div class="quote-cards"><div class="quote buy"><span>Suggested bid</span><b id="suggestBuyPrice">—</b><small id="suggestBuyQty">—</small></div><div class="quote sell"><span>Suggested ask</span><b id="suggestSellPrice">—</b><small id="suggestSellQty">—</small></div></div>
+          <div class="model-meta"><span>Reservation price <b id="reservation">—</b></span><span>Model spread <b id="modelSpread">—</b></span></div>
+          <button id="useQuote" class="secondary-button">Restore A–S suggestion to form</button>
+        </article>
+        <article class="panel order-panel"><div class="panel-heading"><div><span class="kicker">ORDER ENTRY</span><h2>Place a manual order</h2></div></div>
+          <form id="orderForm"><div class="segmented"><button type="button" data-side="buy" class="active buy-tab">Buy / Long</button><button type="button" data-side="sell" class="sell-tab">Sell / Short</button></div><input type="hidden" id="side" value="buy"><label>Limit price<input id="price" type="number" step="0.01" min="0.01" required></label><label>Quantity <span class="hint">No position limit on manual orders</span><input id="quantity" type="number" step="0.01" min="0.01" required></label><button class="primary-button" type="submit">Place order <span>↗</span></button><p id="formMessage" class="form-message" role="status"></p></form>
+        </article>
+        <article class="panel orders-panel"><div class="panel-heading"><h2>Open orders</h2><span class="badge" id="orderCount">0</span></div><div id="myOrders" class="my-orders"><p class="empty">No open orders yet.</p></div></article>
+      </aside>
+    </section>
+    <section class="panel trades-panel"><div class="panel-heading"><div><span class="kicker">EXECUTIONS</span><h2>Recent fills</h2></div><span class="muted">Order flow and market-maker impact</span></div><div id="trades" class="trades"><p class="empty">Waiting for a fill…</p></div></section>
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
